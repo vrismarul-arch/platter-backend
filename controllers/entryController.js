@@ -3,7 +3,13 @@ import nodemailer from "nodemailer";
 
 export const addEntry = async (req, res) => {
   try {
+    console.log("Request Body:", req.body); // Debug
+
     const { eventType, name, date, venue, audizeSize, duration, addOns, contactName, contactEmail, contactPhone } = req.body;
+
+    if (!eventType || !contactEmail) {
+      return res.status(400).json({ success: false, message: "Event type and contact email are required" });
+    }
 
     const newEntry = new Entry({ eventType, name, date, venue, audizeSize, duration, addOns, contactName, contactEmail, contactPhone });
     await newEntry.save();

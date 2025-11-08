@@ -1,13 +1,19 @@
 import mongoose from "mongoose";
 
 const entrySchema = new mongoose.Schema({
-  eventType: String,
+  eventType: { type: String, required: true },
   name: String,
   date: String,
   venue: String,
   audizeSize: String,
   duration: String,
-  addOns: { type: Object, default: {} },
+  addOns: {
+    portrait: Boolean,
+    makingVideo: Boolean,
+    musicSync: Boolean,
+    customTheme: Boolean,
+    liveMode: Boolean
+  },
   contactName: String,
   contactEmail: String,
   contactPhone: String
