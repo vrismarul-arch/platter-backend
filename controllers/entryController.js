@@ -5,7 +5,7 @@ export const addEntry = async (req, res) => {
   try {
     const data = req.body;
 
-    // Save entry to DB
+    // Save entry to MongoDB
     const entry = await Entry.create({
       eventType: data.eventType,
       name: data.name,
@@ -19,7 +19,7 @@ export const addEntry = async (req, res) => {
       contactPhone: data.contactPhone
     });
 
-    // Send confirmation email
+    // Only send email if contactEmail exists
     if (data.contactEmail) {
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -30,8 +30,8 @@ export const addEntry = async (req, res) => {
       });
 
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: data.contactEmail,
+        from: `"Sand Art" <${process.env.EMAIL_USER}>`, // sender
+        to: data.contactEmail, // recipient
         subject: "Sand Art Booking Confirmation 🎉",
         html: `
           <h2>Hi ${data.contactName},</h2>
