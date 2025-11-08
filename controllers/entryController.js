@@ -3,34 +3,51 @@ import nodemailer from "nodemailer";
 
 export const addEntry = async (req, res) => {
   try {
-    console.log("Request Body:", req.body); // Debug
+    const data = req.body;
 
-    const { eventType, name, date, venue, audizeSize, duration, addOns, contactName, contactEmail, contactPhone } = req.body;
-
-    if (!eventType || !contactEmail) {
-      return res.status(400).json({ success: false, message: "Event type and contact email are required" });
-    }
-
-    const newEntry = new Entry({ eventType, name, date, venue, audizeSize, duration, addOns, contactName, contactEmail, contactPhone });
-    await newEntry.save();
+    // Save entry to DB
+    const entry = await Entry.create({
+      eventType: data.eventType,
+      name: data.name,
+      date: data.date,
+      venue: data.venue,
+      audizeSize: data.audizeSize,
+      duration: data.duration,
+      addOns: data.addOns,
+      contactName: data.contactName,
+      contactEmail: data.contactEmail,
+      contactPhone: data.contactPhone
+    });
 
     // Send confirmation email
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
-    });
+    if (data.contactEmail) {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: contactEmail,
-      subject: "Sand Art Event Booking ✅",
-      text: `Hello ${contactName},\n\nYour Sand Art Event has been booked successfully!\n\nDetails:\nEvent: ${name}\nType: ${eventType}\nDate: ${date}\nVenue: ${venue}\nAudience: ${audizeSize}\nDuration: ${duration}\nAdd-ons: ${Object.keys(addOns).filter(k => addOns[k]).join(", ") || "None"}`
-    });
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: data.contactEmail,
+        subject: "Sand Art Booking Confirmation 🎉",
+        html: `
+          <h2>Hi ${data.contactName},</h2>
+          <p>Your sand art booking has been received successfully!</p>
+          <p>We will contact you soon to finalize the details.</p>
+          <br>
+          <b>Thank You 💛</b>
+        `,
+      });
 
-    res.json({ success: true, message: "Saved & Email Sent ✅" });
+      console.log("📨 Confirmation Email Sent to", data.contactEmail);
+    }
 
+    res.status(200).json({ success: true, message: "Booking stored & email sent ✅", entry });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Something went wrong", error: err.message });
   }
 };
