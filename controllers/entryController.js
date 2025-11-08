@@ -1,11 +1,11 @@
 import Entry from "../models/Entry.js";
-import nodemailer from "nodemailer";
+import transporter from "../config/transporter.js"; // Import transporter
 
 export const addEntry = async (req, res) => {
   try {
     const data = req.body;
 
-    // Save entry to MongoDB
+    // Save entry to DB
     const entry = await Entry.create({
       eventType: data.eventType,
       name: data.name,
@@ -16,22 +16,14 @@ export const addEntry = async (req, res) => {
       addOns: data.addOns,
       contactName: data.contactName,
       contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone
+      contactPhone: data.contactPhone,
     });
 
-    // Only send email if contactEmail exists
+    // Send confirmation email if email exists
     if (data.contactEmail) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-      });
-
       await transporter.sendMail({
-        from: `"Sand Art" <${process.env.EMAIL_USER}>`, // sender
-        to: data.contactEmail, // recipient
+        from: `"Sand Art" <${process.env.EMAIL_USER}>`,
+        to: data.contactEmail,
         subject: "Sand Art Booking Confirmation 🎉",
         html: `
           <h2>Hi ${data.contactName},</h2>
@@ -41,7 +33,6 @@ export const addEntry = async (req, res) => {
           <b>Thank You 💛</b>
         `,
       });
-
       console.log("📨 Confirmation Email Sent to", data.contactEmail);
     }
 
