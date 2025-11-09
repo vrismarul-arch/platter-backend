@@ -25,13 +25,56 @@ export const addEntry = async (req, res) => {
         from: `"Sand Art" <${process.env.EMAIL_USER}>`,
         to: data.contactEmail,
         subject: "Sand Art Booking Confirmation 🎉",
+       
+
         html: `
-          <h2>Hi ${data.contactName},</h2>
-          <p>Your sand art booking has been received successfully!</p>
-          <p>We will contact you soon to finalize the details.</p>
-          <br>
-          <b>Thank You 💛</b>
-        `,
+  <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 30px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: #000000; padding: 25px; text-align: center;">
+              <h1 style="color: #fbbc05; margin: 0; font-size: 26px;">Sand Art Booking Confirmation</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 30px; color: #333333; font-size: 16px; line-height: 24px;">
+              <p>Hi <b>${data.contactName}</b>,</p>
+              <p>Thank you for booking a Sand Art show with us! 🎉</p>
+              <p>We have successfully received your enquiry and our team will get in touch with you shortly to finalize the event details.</p>
+              
+              <!-- Event Summary Box -->
+              <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #fbbc05; margin-top: 20px;">
+                <p style="margin: 0;"><b>Event Details:</b></p>
+                <p style="margin: 5px 0;">Event Type: <b>${data.eventType}</b></p>
+                <p style="margin: 5px 0;">Date: <b>${data.date}</b></p>
+                <p style="margin: 5px 0;">Venue: <b>${data.venue}</b></p>
+                <p style="margin: 5px 0;">Audience Size: <b>${data.audizeSize}</b></p>
+                <p style="margin: 5px 0;">Duration: <b>${data.duration}</b></p>
+              </div>
+
+              <p style="margin-top: 30px;">If you have any questions or need changes, just reply to this email. We're here to help 😊</p>
+              <p><b>Thank You! 💛</b><br>Sand Art Team</p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #000000; text-align: center; padding: 20px; color: #ffffff; font-size: 14px;">
+              © ${new Date().getFullYear()} Sand Art. All Rights Reserved.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+`
+
       });
       console.log("📨 Confirmation Email Sent to", data.contactEmail);
     }
