@@ -96,15 +96,26 @@ export const updateOrderStatus = async (req, res) => {
     res.status(500).json({ message: "Failed to update status", error: err });
   }
 };
-
 export const getMyOrders = async (req, res) => {
   try {
     const userId = req.user.id; // from auth middleware
 
-    const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
+    const orders = await Order.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .lean(); // .lean() returns plain JS objects
 
-    res.json(orders);
+    // Backend base URL (adjust to your deployment or environment variable)
+    const backendBase = process.env.BACKEND_URL || "http://localhost:5000";
 
+    const ordersWithImages = orders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        image: item.image ? `${backendBase}${item.image}` : "/placeholder.png",
+      })),
+    }));
+
+    res.json(ordersWithImages);
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch your orders",
