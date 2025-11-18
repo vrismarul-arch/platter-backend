@@ -20,6 +20,6 @@ router.get("/my-orders", protect, getMyOrders);
 router.get("/",  getAllOrders);
 
 // ADMIN: update order status
-router.put("/:orderId/status", protect, adminOnly, updateOrderStatus);
+router.put("/:orderId/status",  updateOrderStatus);
 
 export default router;

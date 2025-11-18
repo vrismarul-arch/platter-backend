@@ -1,10 +1,17 @@
 import mongoose from "mongoose";
 
 const priceSchema = new mongoose.Schema({
-  oneTime: { type: Number, default: 0 },      // One-Time
-  threeDays: { type: Number, default: 0 },    // 3 Days
-  sevenDays: { type: Number, default: 0 },    // 7 Days
-  thirtyDays: { type: Number, default: 0 },   // 30 Days
+  oneTime: { type: Number, default: 0 },
+  monthly: { type: Number, default: 0 },
+
+  weekly3: {
+    monWedFri: { type: Number, default: 0 },   // M-W-F
+    tueThuSat: { type: Number, default: 0 },   // T-TH-S
+  },
+
+  weekly6: {
+    monToSat: { type: Number, default: 0 },    // ONLY VALID (Sun removed)
+  }
 });
 
 const productSchema = new mongoose.Schema(
@@ -18,6 +25,4 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Product = mongoose.model("Product", productSchema);
-
-export default Product;
+export default mongoose.model("Product", productSchema);
