@@ -5,19 +5,19 @@ const priceSchema = new mongoose.Schema({
   monthly: { type: Number, default: 0 },
 
   weekly3: {
-    monWedFri: { type: Number, default: 0 },   // M-W-F
-    tueThuSat: { type: Number, default: 0 },   // T-TH-S
+    monWedFri: { type: Number, default: 0 },  // M-W-F
+    tueThuSat: { type: Number, default: 0 },  // T-T-S
   },
 
   weekly6: {
-    monToSat: { type: Number, default: 0 },    // ONLY VALID (Sun removed)
+    monToSat: { type: Number, default: 0 },   // Mon–Sat (6 days)
   }
 });
 
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    img: { type: String, required: true },
+    img: { type: String, required: true },     // Image URL stored here
     desc: { type: String, required: true },
     rating: { type: Number, default: 0 },
     prices: priceSchema,

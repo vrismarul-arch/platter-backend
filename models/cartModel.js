@@ -10,6 +10,8 @@ const cartItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   img: { type: String },
   desc: { type: String },
+
+  // Flattened prices (ready to use in frontend)
   prices: {
     oneTime: { type: Number, default: 0 },
     monthly: { type: Number, default: 0 },
@@ -17,12 +19,13 @@ const cartItemSchema = new mongoose.Schema({
     weekly3_TTS: { type: Number, default: 0 },
     weekly6: { type: Number, default: 0 },
   },
-  selectedOption: { type: String, required: true }, // oneTime, monthly, weekly3_MWF, weekly3_TTS, weekly6
+
+  selectedOption: { type: String, required: true }, // oneTime | monthly | weekly3_MWF | weekly3_TTS | weekly6
   selectedOptionPrice: { type: Number, default: 0 },
   quantity: { type: Number, default: 1 },
 });
 
-// Main Cart schema
+// Main Cart Schema
 const cartSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true },
