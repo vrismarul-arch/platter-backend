@@ -16,7 +16,7 @@ const app = express();
 
 // CORS
 app.use(cors({
-  origin: ["http://localhost:5173","https://getplattr.in","https://platter-vrism.netlify.app" ],
+  origin: ["http://localhost:5173","https://getplattr.in","https://platter-vrism.netlify.app","https://www.getplattr.in"],
   methods: ["GET","POST","PUT","DELETE","OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
