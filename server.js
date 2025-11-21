@@ -10,6 +10,7 @@ import adminRoutes from "./routes/adminRoutes.js"; // <-- import admin routes
 import cartRoutes from "./routes/cartRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import leadRoutes from "./routes/leadRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -39,6 +40,8 @@ if (!global._mongooseConnected) {
 }
 
 // Routes
+app.use("/api/leads", leadRoutes);
+
 
 app.use("/api/orders", orderRoutes);
 app.use("/api/products", productRoutes);

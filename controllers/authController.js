@@ -1,6 +1,7 @@
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Lead from "../models/Lead.js";
 
 export const googleLogin = async (req, res) => {
   const { token } = req.body;
@@ -15,14 +16,25 @@ export const googleLogin = async (req, res) => {
 
     const { sub, email, name, picture } = response.data;
 
-    // Find or create user in DB
+    // Find or create user
     let user = await User.findOne({ googleId: sub });
     if (!user) {
       user = new User({ googleId: sub, email, name, picture });
       await user.save();
     }
 
-    // Create app JWT
+    // 🟦 Save Lead Entry
+    await Lead.create({
+      name,
+      email,
+      googleId: sub,
+      picture,
+      source: "Google Login",
+      ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
+
+    // Generate Token
     const appToken = jwt.sign(
       { id: user._id, email: user.email, name: user.name },
       process.env.JWT_SECRET,

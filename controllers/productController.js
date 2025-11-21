@@ -22,7 +22,6 @@ const uploadToSupabase = async (filePath, originalName) => {
   const fileBuffer = fs.readFileSync(filePath);
   const fileName = `${Date.now()}_${originalName}`;
 
-  // Upload to Supabase bucket
   const { error: uploadError } = await supabase.storage
     .from("ads")
     .upload(fileName, fileBuffer, {
@@ -32,10 +31,8 @@ const uploadToSupabase = async (filePath, originalName) => {
 
   if (uploadError) throw uploadError;
 
-  // Build manual public URL
   const publicUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/ads/${fileName}`;
 
-  // Delete temp file
   fs.unlinkSync(filePath);
 
   return publicUrl;
@@ -49,7 +46,9 @@ export const getProducts = async (req, res) => {
     const products = await Product.find({});
     res.json(products);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch products", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch products", error: err.message });
   }
 };
 
@@ -64,7 +63,9 @@ export const getProductById = async (req, res) => {
 
     res.json(product);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch product", error: err.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch product", error: err.message });
   }
 };
 
@@ -76,49 +77,52 @@ export const createProduct = async (req, res) => {
     if (!req.file)
       return res.status(400).json({ message: "Image is required" });
 
-    // Upload image
+    // Upload image to Supabase
     const imgUrl = await uploadToSupabase(
       req.file.path,
       req.file.originalname
     );
 
-    const {
-      name,
-      desc,
-      rating,
-      category,
-      deliverable,
-      oneTime,
-      monthly,
-      weekly3_monWedFri,
-      weekly3_tueThuSat,
-      weekly6_monToSat,
-    } = req.body;
+    // PARSE JSON FIELDS
+    let ingredients = [];
+    try {
+      ingredients = JSON.parse(req.body.ingredients || "[]");
+    } catch {
+      ingredients = [];
+    }
 
     const product = await Product.create({
-      name,
-      desc,
-      rating: Number(rating) || 0,
-      category: category || "General",
-      deliverable: deliverable !== undefined ? deliverable : true,
+      name: req.body.name,
+      desc: req.body.desc,
+      rating: Number(req.body.rating) || 0,
       img: imgUrl,
 
+      // NEW FIELDS
+      totalQuantity: req.body.totalQuantity || "",
+      ingredients,
+
+      // PRICES
       prices: {
-        oneTime: Number(oneTime) || 0,
-        monthly: Number(monthly) || 0,
+        oneTime: Number(req.body.oneTime) || 0,
+        monthly: Number(req.body.monthly) || 0,
+
         weekly3: {
-          monWedFri: Number(weekly3_monWedFri) || 0,
-          tueThuSat: Number(weekly3_tueThuSat) || 0,
+          monWedFri: Number(req.body.weekly3_monWedFri) || 0,
+          tueThuSat: Number(req.body.weekly3_tueThuSat) || 0,
         },
+
         weekly6: {
-          monToSat: Number(weekly6_monToSat) || 0,
+          monToSat: Number(req.body.weekly6_monToSat) || 0,
         },
       },
     });
 
     res.status(201).json(product);
   } catch (err) {
-    res.status(500).json({ message: "Error creating product", error: err.message });
+    res.status(500).json({
+      message: "Error creating product",
+      error: err.message,
+    });
   }
 };
 
@@ -127,31 +131,30 @@ export const createProduct = async (req, res) => {
 ============================================ */
 export const updateProduct = async (req, res) => {
   try {
-    const {
-      name,
-      desc,
-      rating,
-      category,
-      deliverable,
-      oneTime,
-      monthly,
-      weekly3_monWedFri,
-      weekly3_tueThuSat,
-      weekly6_monToSat,
-    } = req.body;
-
-    const product = await Product.findById(req.params.id);
+    let product = await Product.findById(req.params.id);
     if (!product)
       return res.status(404).json({ message: "Product not found" });
 
-    // Update simple fields
-    if (name) product.name = name;
-    if (desc) product.desc = desc;
-    if (rating) product.rating = Number(rating);
-    if (category) product.category = category;
-    if (deliverable !== undefined) product.deliverable = deliverable;
+    // BASIC FIELDS
+    if (req.body.name) product.name = req.body.name;
+    if (req.body.desc) product.desc = req.body.desc;
+    if (req.body.rating !== undefined)
+      product.rating = Number(req.body.rating);
 
-    // If new image uploaded → upload to Supabase
+    // NEW FIELDS
+    if (req.body.totalQuantity)
+      product.totalQuantity = req.body.totalQuantity;
+
+    // INGREDIENTS JSON
+    if (req.body.ingredients) {
+      try {
+        product.ingredients = JSON.parse(req.body.ingredients);
+      } catch {
+        product.ingredients = [];
+      }
+    }
+
+    // NEW IMAGE?
     if (req.file) {
       const imgUrl = await uploadToSupabase(
         req.file.path,
@@ -160,23 +163,36 @@ export const updateProduct = async (req, res) => {
       product.img = imgUrl;
     }
 
-    // Update pricing
-    if (oneTime !== undefined) product.prices.oneTime = Number(oneTime);
-    if (monthly !== undefined) product.prices.monthly = Number(monthly);
+    // PRICES
+    if (req.body.oneTime !== undefined)
+      product.prices.oneTime = Number(req.body.oneTime);
 
-    if (weekly3_monWedFri !== undefined)
-      product.prices.weekly3.monWedFri = Number(weekly3_monWedFri);
+    if (req.body.monthly !== undefined)
+      product.prices.monthly = Number(req.body.monthly);
 
-    if (weekly3_tueThuSat !== undefined)
-      product.prices.weekly3.tueThuSat = Number(weekly3_tueThuSat);
+    if (req.body.weekly3_monWedFri !== undefined)
+      product.prices.weekly3.monWedFri = Number(
+        req.body.weekly3_monWedFri
+      );
 
-    if (weekly6_monToSat !== undefined)
-      product.prices.weekly6.monToSat = Number(weekly6_monToSat);
+    if (req.body.weekly3_tueThuSat !== undefined)
+      product.prices.weekly3.tueThuSat = Number(
+        req.body.weekly3_tueThuSat
+      );
+
+    if (req.body.weekly6_monToSat !== undefined)
+      product.prices.weekly6.monToSat = Number(
+        req.body.weekly6_monToSat
+      );
 
     await product.save();
+
     res.json(product);
   } catch (err) {
-    res.status(400).json({ message: "Failed to update product", error: err.message });
+    res.status(400).json({
+      message: "Failed to update product",
+      error: err.message,
+    });
   }
 };
 
@@ -192,6 +208,9 @@ export const deleteProduct = async (req, res) => {
 
     res.json({ message: "Product deleted successfully" });
   } catch (err) {
-    res.status(400).json({ message: "Failed to delete product", error: err.message });
+    res.status(400).json({
+      message: "Failed to delete product",
+      error: err.message,
+    });
   }
 };
