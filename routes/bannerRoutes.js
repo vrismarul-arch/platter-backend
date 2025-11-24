@@ -10,8 +10,14 @@ import {
 const router = express.Router();
 
 router.get("/", getBanners);
-router.post("/", upload.single("image"), createBanner);
-router.put("/:id", upload.single("image"), updateBanner);
+
+// CREATE (desktop + mobile)
+router.post("/", upload, createBanner);
+
+// UPDATE
+router.put("/:id", upload, updateBanner);
+
+// DELETE
 router.delete("/:id", deleteBanner);
 
 export default router;
