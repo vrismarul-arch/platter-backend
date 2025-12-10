@@ -1,6 +1,7 @@
 import Product from "../models/productModel.js";
 import multer from "multer";
 import path from "path";
+import mongoose from "mongoose";
 import fs from "fs";
 import { supabase } from "../config/supabaseClient.js";
 
@@ -59,23 +60,16 @@ export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate ID format (avoid CastError)
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid product ID format" });
     }
 
     const product = await Product.findById(id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
     res.json(product);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch product",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to fetch product", error: err.message });
   }
 };
 
