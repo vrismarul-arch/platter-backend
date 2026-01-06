@@ -27,7 +27,7 @@ export const getAdminProfile = (req, res) => {
     role: "Admin",
   });
 };
-
+/* sds */
 export const getDashboard = (req, res) => {
   res.status(200).json({ message: "Welcome to Admin Dashboard" });
 };
