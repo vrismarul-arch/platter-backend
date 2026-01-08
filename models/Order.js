@@ -15,11 +15,29 @@ const orderSchema = new mongoose.Schema(
 
     items: [
       {
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+        },
+
         name: String,
         quantity: Number,
         price: Number,
-        selectedOption: String,
+
+        /* ✅ PLAN */
+        selectedOption: {
+          type: String,
+          default: "oneTime",
+        },
+
+        /* ✅ INGREDIENTS */
+        selectedIngredients: [
+          {
+            ingredientId: String,
+            name: String,
+            quantity: String,
+          },
+        ],
       },
     ],
 
@@ -50,6 +68,5 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 
 export default mongoose.model("Order", orderSchema);

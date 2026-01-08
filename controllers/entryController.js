@@ -25,7 +25,7 @@ export const addEntry = async (req, res) => {
         from: `"Sand Art" <${process.env.EMAIL_USER}>`,
         to: data.contactEmail,
         subject: "Sand Art Booking Confirmation 🎉",
-       
+
 
         html: `
   <table width="100%" cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 30px;">

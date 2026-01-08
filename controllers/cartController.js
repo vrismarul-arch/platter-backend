@@ -1,35 +1,43 @@
 import Cart from "../models/cartModel.js";
 import Product from "../models/productModel.js";
 
-// Safe price fallback
-const getPriceSafely = (value, fallback = 0) =>
-  value !== undefined && value !== null ? value : fallback;
+/* ======================================
+   HELPERS
+====================================== */
 
-// Convert product.prices → flat structure for cart
-const mapProductPricesToCart = (product) => {
-  return {
-    oneTime: getPriceSafely(product.prices.oneTime),
-    monthly: getPriceSafely(product.prices.monthly),
+// Safe number fallback
+const safeNumber = (val, fallback = 0) =>
+  val !== undefined && val !== null ? val : fallback;
 
-    weekly3_MWF: getPriceSafely(product.prices.weekly3?.monWedFri),
-    weekly3_TTS: getPriceSafely(product.prices.weekly3?.tueThuSat),
+// Convert product.prices → flat cart prices
+const mapProductPricesToCart = (product) => ({
+  oneTime: safeNumber(product.prices?.oneTime),
+  monthly: safeNumber(product.prices?.monthly),
 
-    weekly6: getPriceSafely(product.prices.weekly6?.monToSat),
-  };
-};
+  weekly3_MWF: safeNumber(product.prices?.weekly3?.monWedFri),
+  weekly3_TTS: safeNumber(product.prices?.weekly3?.tueThuSat),
 
-// ===============================
-// GET USER CART
-// ===============================
+  weekly6: safeNumber(product.prices?.weekly6?.monToSat),
+});
+
+// Compare ingredient arrays safely
+const sameIngredients = (a = [], b = []) =>
+  JSON.stringify(a) === JSON.stringify(b);
+
+/* ======================================
+   GET USER CART
+====================================== */
 export const getCart = async (req, res) => {
   try {
     const { userId } = req.query;
 
+    if (!userId) return res.json({ items: [] });
+
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
 
-    // Sync latest product data (name, img, desc, prices)
-    for (let item of cart.items) {
+    // Sync latest product info
+    for (const item of cart.items) {
       const product = await Product.findById(item.productId);
       if (!product) continue;
 
@@ -37,10 +45,7 @@ export const getCart = async (req, res) => {
 
       item.name = product.name;
       item.desc = product.desc;
-
-      // SUPABASE IMAGE
-      item.img = product.img;  
-
+      item.img = product.img;
       item.prices = correctedPrices;
       item.selectedOptionPrice =
         correctedPrices[item.selectedOption] ?? correctedPrices.oneTime;
@@ -56,12 +61,20 @@ export const getCart = async (req, res) => {
   }
 };
 
-// ===============================
-// ADD ITEM TO CART
-// ===============================
+/* ======================================
+   ADD ITEM TO CART
+====================================== */
 export const addToCart = async (req, res) => {
   try {
-    const { userId, product: prodData, optionKey = "oneTime" } = req.body;
+    const {
+      userId,
+      product: prodData,
+      optionKey = "oneTime",
+      selectedIngredients = [],
+    } = req.body;
+
+    if (!userId)
+      return res.status(401).json({ message: "User not logged in" });
 
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
@@ -70,29 +83,31 @@ export const addToCart = async (req, res) => {
     if (!product)
       return res.status(404).json({ message: "Product not found" });
 
-    const correctedPrices = mapProductPricesToCart(product);
-    const initialPrice = correctedPrices[optionKey];
+    const prices = mapProductPricesToCart(product);
+    const selectedPrice = prices[optionKey] ?? prices.oneTime;
 
-    // Already exists? update qty instead
+    // Check for existing item (same product + same plan + same ingredients)
     const exists = cart.items.find(
       (item) =>
         item.productId.toString() === product._id.toString() &&
-        item.selectedOption === optionKey
+        item.selectedOption === optionKey &&
+        sameIngredients(item.selectedIngredients, selectedIngredients)
     );
 
     if (exists) {
-      exists.quantity++;
-      exists.prices = correctedPrices;
-      exists.selectedOptionPrice = initialPrice;
+      exists.quantity += 1;
+      exists.selectedOptionPrice = selectedPrice;
+      exists.prices = prices;
     } else {
       cart.items.push({
         productId: product._id,
         name: product.name,
         desc: product.desc,
-        img: product.img, // SUPABASE IMAGE
-        prices: correctedPrices,
+        img: product.img,
+        prices,
         selectedOption: optionKey,
-        selectedOptionPrice: initialPrice,
+        selectedOptionPrice: selectedPrice,
+        selectedIngredients,
         quantity: 1,
       });
     }
@@ -107,9 +122,9 @@ export const addToCart = async (req, res) => {
   }
 };
 
-// ===============================
-// UPDATE CART ITEM
-// ===============================
+/* ======================================
+   UPDATE ITEM (QTY / PRICE PLAN)
+====================================== */
 export const updateItem = async (req, res) => {
   try {
     const { userId, _id, quantity, selectedOption } = req.body;
@@ -120,16 +135,18 @@ export const updateItem = async (req, res) => {
     const item = cart.items.find((i) => i._id.toString() === _id);
     if (!item) return res.json(cart);
 
-    if (quantity !== undefined) item.quantity = quantity;
+    if (quantity !== undefined) {
+      item.quantity = quantity;
+    }
 
     if (selectedOption) {
       const product = await Product.findById(item.productId);
       if (product) {
-        const correctedPrices = mapProductPricesToCart(product);
+        const prices = mapProductPricesToCart(product);
         item.selectedOption = selectedOption;
         item.selectedOptionPrice =
-          correctedPrices[selectedOption] ?? correctedPrices.oneTime;
-        item.prices = correctedPrices;
+          prices[selectedOption] ?? prices.oneTime;
+        item.prices = prices;
       }
     }
 
@@ -143,9 +160,9 @@ export const updateItem = async (req, res) => {
   }
 };
 
-// ===============================
-// REMOVE ITEM
-// ===============================
+/* ======================================
+   REMOVE ITEM
+====================================== */
 export const removeItem = async (req, res) => {
   try {
     const { userId, _id } = req.body;
@@ -153,21 +170,23 @@ export const removeItem = async (req, res) => {
     const cart = await Cart.findOne({ userId });
     if (!cart) return res.json({ items: [] });
 
-    cart.items = cart.items.filter((item) => item._id.toString() !== _id);
-    await cart.save();
+    cart.items = cart.items.filter(
+      (item) => item._id.toString() !== _id
+    );
 
+    await cart.save();
     res.json(cart);
   } catch (err) {
     res.status(500).json({
-      message: "Failed to remove product",
+      message: "Failed to remove item",
       error: err.message,
     });
   }
 };
 
-// ===============================
-// CLEAR CART
-// ===============================
+/* ======================================
+   CLEAR CART
+====================================== */
 export const clearCart = async (req, res) => {
   try {
     const { userId } = req.body;
