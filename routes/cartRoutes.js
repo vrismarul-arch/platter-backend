@@ -6,13 +6,15 @@ import {
   updateItem,
   clearCart,
 } from "../controllers/cartController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getCart);
-router.post("/add", addToCart);
-router.post("/remove", removeItem);
-router.post("/update", updateItem);
-router.post("/clear", clearCart);
+// 🔐 ALL CART ROUTES PROTECTED
+router.get("/", protect, getCart);
+router.post("/add", protect, addToCart);
+router.post("/remove", protect, removeItem);
+router.post("/update", protect, updateItem);
+router.post("/clear", protect, clearCart);
 
 export default router;

@@ -1,143 +1,118 @@
 import Cart from "../models/cartModel.js";
 import Product from "../models/productModel.js";
 
-/* ======================================
-   HELPERS
-====================================== */
+/* ================= HELPERS ================= */
 
-// Safe number fallback
 const safeNumber = (val, fallback = 0) =>
   val !== undefined && val !== null ? val : fallback;
 
-// Convert product.prices → flat cart prices
 const mapProductPricesToCart = (product) => ({
   oneTime: safeNumber(product.prices?.oneTime),
   monthly: safeNumber(product.prices?.monthly),
-
   weekly3_MWF: safeNumber(product.prices?.weekly3?.monWedFri),
   weekly3_TTS: safeNumber(product.prices?.weekly3?.tueThuSat),
-
   weekly6: safeNumber(product.prices?.weekly6?.monToSat),
 });
 
-// Compare ingredient arrays safely
 const sameIngredients = (a = [], b = []) =>
   JSON.stringify(a) === JSON.stringify(b);
 
-/* ======================================
-   GET USER CART
-====================================== */
+/* ================= GET CART ================= */
+
 export const getCart = async (req, res) => {
   try {
-    const { userId } = req.query;
-
-    if (!userId) return res.json({ items: [] });
+    const userId = req.user.id;
 
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
 
-    // Sync latest product info
     for (const item of cart.items) {
       const product = await Product.findById(item.productId);
       if (!product) continue;
 
-      const correctedPrices = mapProductPricesToCart(product);
+      const prices = mapProductPricesToCart(product);
 
       item.name = product.name;
       item.desc = product.desc;
       item.img = product.img;
-      item.prices = correctedPrices;
+      item.prices = prices;
       item.selectedOptionPrice =
-        correctedPrices[item.selectedOption] ?? correctedPrices.oneTime;
+        prices[item.selectedOption] ?? prices.oneTime;
     }
 
     await cart.save();
     res.json(cart);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to fetch cart",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to load cart" });
   }
 };
 
-/* ======================================
-   ADD ITEM TO CART
-====================================== */
+/* ================= ADD TO CART ================= */
+
 export const addToCart = async (req, res) => {
   try {
+    const userId = req.user.id;
     const {
-      userId,
-      product: prodData,
-      optionKey = "oneTime",
+      productId,
+      selectedOption = "oneTime",
       selectedIngredients = [],
+      quantity = 1,
     } = req.body;
-
-    if (!userId)
-      return res.status(401).json({ message: "User not logged in" });
 
     let cart = await Cart.findOne({ userId });
     if (!cart) cart = await Cart.create({ userId, items: [] });
 
-    const product = await Product.findById(prodData._id);
+    const product = await Product.findById(productId);
     if (!product)
       return res.status(404).json({ message: "Product not found" });
 
     const prices = mapProductPricesToCart(product);
-    const selectedPrice = prices[optionKey] ?? prices.oneTime;
+    const selectedPrice = prices[selectedOption] ?? prices.oneTime;
 
-    // Check for existing item (same product + same plan + same ingredients)
     const exists = cart.items.find(
       (item) =>
-        item.productId.toString() === product._id.toString() &&
-        item.selectedOption === optionKey &&
+        item.productId.toString() === productId &&
+        item.selectedOption === selectedOption &&
         sameIngredients(item.selectedIngredients, selectedIngredients)
     );
 
     if (exists) {
-      exists.quantity += 1;
-      exists.selectedOptionPrice = selectedPrice;
-      exists.prices = prices;
+      exists.quantity += quantity;
     } else {
       cart.items.push({
-        productId: product._id,
+        productId,
         name: product.name,
         desc: product.desc,
         img: product.img,
         prices,
-        selectedOption: optionKey,
+        selectedOption,
         selectedOptionPrice: selectedPrice,
         selectedIngredients,
-        quantity: 1,
+        quantity,
       });
     }
 
     await cart.save();
     res.json(cart);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to add item",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to add item" });
   }
 };
 
-/* ======================================
-   UPDATE ITEM (QTY / PRICE PLAN)
-====================================== */
+/* ================= UPDATE ITEM ================= */
+
 export const updateItem = async (req, res) => {
   try {
-    const { userId, _id, quantity, selectedOption } = req.body;
+    const userId = req.user.id;
+    const { _id, quantity, selectedOption } = req.body;
 
     const cart = await Cart.findOne({ userId });
-    if (!cart) return res.json({ items: [] });
+    if (!cart) return res.json(cart);
 
-    const item = cart.items.find((i) => i._id.toString() === _id);
+    const item = cart.items.id(_id);
     if (!item) return res.json(cart);
 
-    if (quantity !== undefined) {
-      item.quantity = quantity;
-    }
+    if (quantity !== undefined) item.quantity = quantity;
 
     if (selectedOption) {
       const product = await Product.findById(item.productId);
@@ -153,22 +128,19 @@ export const updateItem = async (req, res) => {
     await cart.save();
     res.json(cart);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to update item",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to update item" });
   }
 };
 
-/* ======================================
-   REMOVE ITEM
-====================================== */
+/* ================= REMOVE ITEM ================= */
+
 export const removeItem = async (req, res) => {
   try {
-    const { userId, _id } = req.body;
+    const userId = req.user.id;
+    const { _id } = req.body;
 
     const cart = await Cart.findOne({ userId });
-    if (!cart) return res.json({ items: [] });
+    if (!cart) return res.json(cart);
 
     cart.items = cart.items.filter(
       (item) => item._id.toString() !== _id
@@ -177,19 +149,15 @@ export const removeItem = async (req, res) => {
     await cart.save();
     res.json(cart);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to remove item",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to remove item" });
   }
 };
 
-/* ======================================
-   CLEAR CART
-====================================== */
+/* ================= CLEAR CART ================= */
+
 export const clearCart = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.user.id;
 
     const cart = await Cart.findOneAndUpdate(
       { userId },
@@ -199,9 +167,6 @@ export const clearCart = async (req, res) => {
 
     res.json(cart);
   } catch (err) {
-    res.status(500).json({
-      message: "Failed to clear cart",
-      error: err.message,
-    });
+    res.status(500).json({ message: "Failed to clear cart" });
   }
 };
